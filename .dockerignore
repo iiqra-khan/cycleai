@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/
+
+# Data (large files — mount as volume instead)
+data/
+
+# Node
+frontend/node_modules/
+frontend/.vite/
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+tests/__pycache__/
+
+EDA/
+mcphases/
+menstrual_ai_agentic_rag/
+*.pkl
+*.csv
+*.ipynb
+chroma_db/
+pipeline_outputs/
+models/

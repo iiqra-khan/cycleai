@@ -1,0 +1,43 @@
+# =============================================================================
+# docker-compose.yml
+# Run with: docker compose up --build
+# =============================================================================
+
+services:
+
+  # ── Backend (FastAPI) ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cycleai-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount models folder so container uses your trained models
+      - ./models:/app/models
+      # Mount pipeline outputs
+      - ./pipeline_outputs:/app/pipeline_outputs
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Frontend (React + nginx) ────────────────────────────────────────────────
+  frontend:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: cycleai-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
