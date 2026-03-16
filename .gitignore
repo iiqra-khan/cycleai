@@ -1,18 +1,43 @@
-.env
-.venv/
-__pycache__/
-*.pyc
-*.pkl
-*.csv
-chroma_db/
-pipeline_outputs/
-node_modules/
-frontend/dist/
-*.log
-data/
-notebooks/
-menstrual_ai_agentic_rag/
 mcphases/
 Major Project Synopsis.docx
 mcphases-a-dataset-of-physiological-hormonal-and-self-reported-events-and-symptoms-for-menstrual-health-tracking-with-wearables-1.0.0.zip
 menstrual_prediction_paper.docx
+
+# Python
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Models (large files)
+*.pkl
+models/
+
+# Data
+*.csv
+data/
+
+# Notebooks
+.ipynb_checkpoints/
+notebooks/
+
+# Outputs
+pipeline_outputs/
+chroma_db/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Old project folder
+menstrual_ai_agentic_rag/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
