@@ -1,0 +1,394 @@
+{
+  "metrics": [
+    {
+      "model": "Logistic Regression (Baseline)",
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "auc_roc": 1.0,
+      "auprc": 0.9999999999999998,
+      "confusion_matrix": [
+        [
+          1101,
+          0
+        ],
+        [
+          0,
+          37
+        ]
+      ]
+    },
+    {
+      "model": "Random Forest",
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "auc_roc": 1.0,
+      "auprc": 1.0,
+      "confusion_matrix": [
+        [
+          1101,
+          0
+        ],
+        [
+          0,
+          37
+        ]
+      ]
+    },
+    {
+      "model": "LightGBM",
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "auc_roc": 1.0,
+      "auprc": 0.9999999999999998,
+      "confusion_matrix": [
+        [
+          1101,
+          0
+        ],
+        [
+          0,
+          37
+        ]
+      ]
+    }
+  ],
+  "cv_results": [
+    {
+      "model": "Logistic Regression (Baseline)",
+      "cv_auc_mean": 0.9997879286895655,
+      "cv_auc_std": 0.00010886708893836869,
+      "cv_f1_mean": 0.935469148111222,
+      "cv_f1_std": 0.043676310439112895
+    },
+    {
+      "model": "Random Forest",
+      "cv_auc_mean": 0.9992335070893293,
+      "cv_auc_std": 0.0012158875270618665,
+      "cv_f1_mean": 0.9450349650349651,
+      "cv_f1_std": 0.05471481685906454
+    },
+    {
+      "model": "LightGBM",
+      "cv_auc_mean": 0.9999693908784817,
+      "cv_auc_std": 6.121824303639833e-05,
+      "cv_f1_mean": 0.9923076923076923,
+      "cv_f1_std": 0.015384615384615375
+    }
+  ],
+  "best_model": "Logistic Regression (Baseline)",
+  "best_auc": 1.0,
+  "feature_importance_top20": {
+    "Logistic Regression (Baseline)": [
+      {
+        "feature": "is_menstrual",
+        "importance": 2.564263022869926,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "is_bleeding_lag1",
+        "importance": 2.478416332870504,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "is_luteal",
+        "importance": 1.0358415350703836,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "is_bleeding_lag2",
+        "importance": 0.6767217749711929,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "is_ovulatory",
+        "importance": 0.6262130341240859,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "is_follicular",
+        "importance": 0.5898501259577519,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "pdg_imputed_roll7",
+        "importance": 0.4825583576557955,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "cramps_imputed",
+        "importance": 0.46059128919346776,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "symptom_burden_roll3",
+        "importance": 0.30840388594167256,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "pdg_imputed_delta",
+        "importance": 0.2962295649113165,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "pdg_imputed",
+        "importance": 0.2866102792181177,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "bloating_imputed",
+        "importance": 0.2620592345119955,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "e2_pdg_ratio",
+        "importance": 0.2611036118194593,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "cramps_imputed_lag1",
+        "importance": 0.23747633529082202,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "is_weekend",
+        "importance": 0.23536851136443268,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "lh_imputed_roll3",
+        "importance": 0.18648174114063232,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "estrogen_imputed",
+        "importance": 0.1677279564511093,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "pdg_imputed_roll3",
+        "importance": 0.15197765698735438,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "exerciselevel_imputed",
+        "importance": 0.15094511283410503,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "indigestion_imputed",
+        "importance": 0.13676635823466016,
+        "method": "Absolute Coefficient"
+      }
+    ],
+    "Random Forest": [
+      {
+        "feature": "is_menstrual",
+        "importance": 0.20008590628724826,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_bleeding_lag1",
+        "importance": 0.05157801535622445,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_luteal",
+        "importance": 0.048414058375807825,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "cramps_imputed",
+        "importance": 0.04816071138674854,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_roll7",
+        "importance": 0.034728919933910675,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_delta",
+        "importance": 0.03425828244923657,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_roll3",
+        "importance": 0.0328213127638905,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_bleeding_lag2",
+        "importance": 0.024579446753687093,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "sorebreasts_imputed",
+        "importance": 0.02398644229567922,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "bloating_imputed",
+        "importance": 0.018534417689399403,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed",
+        "importance": 0.01586137867885812,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_ovulatory",
+        "importance": 0.01235938976922981,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "symptom_burden",
+        "importance": 0.011156113558375706,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_roll7",
+        "importance": 0.009873242183617792,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_follicular",
+        "importance": 0.009139628447671268,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "cramps_imputed_lag1",
+        "importance": 0.008064942027824479,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "cramps_imputed_lag2",
+        "importance": 0.007297009664127409,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "e2_pdg_ratio",
+        "importance": 0.0060298736557789605,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_roll3",
+        "importance": 0.005823102009781477,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_lag2",
+        "importance": 0.0044407204926437465,
+        "method": "SHAP (mean |value|)"
+      }
+    ],
+    "LightGBM": [
+      {
+        "feature": "is_menstrual",
+        "importance": 2.9980768516638805,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_bleeding_lag1",
+        "importance": 2.1254873526834976,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_delta",
+        "importance": 0.5423705160592125,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_luteal",
+        "importance": 0.4425550716392868,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_follicular",
+        "importance": 0.3833515376856141,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_roll7",
+        "importance": 0.36973036997452163,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_roll3",
+        "importance": 0.34410654338330265,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_ovulatory",
+        "importance": 0.29147532963449396,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "cramps_imputed",
+        "importance": 0.2631793063707335,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "cramps_imputed_lag1",
+        "importance": 0.20742280394559645,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed",
+        "importance": 0.16884018636686576,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_bleeding_lag2",
+        "importance": 0.1322307202415677,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_lag2",
+        "importance": 0.06674992421464573,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_lag1",
+        "importance": 0.062715642034606,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "e2_pdg_ratio",
+        "importance": 0.049022511452573136,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_roll7",
+        "importance": 0.04076732220698163,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "estrogen_imputed_delta",
+        "importance": 0.02333461950176585,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_delta",
+        "importance": 0.011906238053580412,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_roll3",
+        "importance": 0.009724804248905917,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "bloating_imputed",
+        "importance": 0.009482730661355668,
+        "method": "SHAP (mean |value|)"
+      }
+    ]
+  }
+}

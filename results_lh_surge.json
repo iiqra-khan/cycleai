@@ -1,0 +1,394 @@
+{
+  "metrics": [
+    {
+      "model": "Logistic Regression (Baseline)",
+      "accuracy": 0.8725834797891037,
+      "precision": 0.5081967213114754,
+      "recall": 0.8322147651006712,
+      "f1_score": 0.6310432569974554,
+      "auc_roc": 0.9366725252950237,
+      "auprc": 0.7520299828020564,
+      "confusion_matrix": [
+        [
+          869,
+          120
+        ],
+        [
+          25,
+          124
+        ]
+      ]
+    },
+    {
+      "model": "Random Forest",
+      "accuracy": 0.8892794376098418,
+      "precision": 0.5493562231759657,
+      "recall": 0.8590604026845637,
+      "f1_score": 0.6701570680628273,
+      "auc_roc": 0.9538208888376165,
+      "auprc": 0.8136658255086171,
+      "confusion_matrix": [
+        [
+          884,
+          105
+        ],
+        [
+          21,
+          128
+        ]
+      ]
+    },
+    {
+      "model": "LightGBM",
+      "accuracy": 0.9305799648506151,
+      "precision": 0.7034883720930233,
+      "recall": 0.8120805369127517,
+      "f1_score": 0.7538940809968847,
+      "auc_roc": 0.9669179769409817,
+      "auprc": 0.8591112338226785,
+      "confusion_matrix": [
+        [
+          938,
+          51
+        ],
+        [
+          28,
+          121
+        ]
+      ]
+    }
+  ],
+  "cv_results": [
+    {
+      "model": "Logistic Regression (Baseline)",
+      "cv_auc_mean": 0.9302433930451104,
+      "cv_auc_std": 0.06834712657772621,
+      "cv_f1_mean": 0.6362674507155299,
+      "cv_f1_std": 0.12206882073890282
+    },
+    {
+      "model": "Random Forest",
+      "cv_auc_mean": 0.9578175329751686,
+      "cv_auc_std": 0.043073580971000974,
+      "cv_f1_mean": 0.7128621810585926,
+      "cv_f1_std": 0.12481477854495683
+    },
+    {
+      "model": "LightGBM",
+      "cv_auc_mean": 0.9501009926715911,
+      "cv_auc_std": 0.05699140742055477,
+      "cv_f1_mean": 0.7338728306300759,
+      "cv_f1_std": 0.10251129852222304
+    }
+  ],
+  "best_model": "LightGBM",
+  "best_auc": 0.9669179769409817,
+  "feature_importance_top20": {
+    "Logistic Regression (Baseline)": [
+      {
+        "feature": "lh_imputed",
+        "importance": 2.054309667767945,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "lh_imputed_delta",
+        "importance": 1.230230890918116,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "lh_imputed_lag1",
+        "importance": 1.030294122530502,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "lh_imputed_roll3",
+        "importance": 0.8744580275127943,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "estrogen_imputed",
+        "importance": 0.43244605980024037,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "pdg_imputed_roll7",
+        "importance": 0.4030701314499614,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "lh_imputed_roll7",
+        "importance": 0.37362540448193576,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "lh_imputed_lag2",
+        "importance": 0.3218004887981046,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "lh_consecutive_rise",
+        "importance": 0.2874136877782191,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "e2_pdg_ratio",
+        "importance": 0.2748988332475534,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "pdg_imputed_roll3",
+        "importance": 0.26810310846509455,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "lh_momentum",
+        "importance": 0.2594002577521956,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "is_follicular",
+        "importance": 0.23338731247374855,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "sorebreasts_imputed",
+        "importance": 0.20269461686505563,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "indigestion_imputed",
+        "importance": 0.1766591696582065,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "is_ovulatory",
+        "importance": 0.166823265414185,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "moodswing_imputed",
+        "importance": 0.16587761032037293,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "cramps_imputed_lag1",
+        "importance": 0.15883199374711837,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "estrogen_capped_flag",
+        "importance": 0.14689352147961562,
+        "method": "Absolute Coefficient"
+      },
+      {
+        "feature": "estrogen_imputed_roll3",
+        "importance": 0.1466132780628069,
+        "method": "Absolute Coefficient"
+      }
+    ],
+    "Random Forest": [
+      {
+        "feature": "lh_imputed",
+        "importance": 0.13982988228001375,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_roll3",
+        "importance": 0.06464201459580074,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_delta",
+        "importance": 0.05148495512471194,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed",
+        "importance": 0.03268998320241934,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_ovulatory",
+        "importance": 0.029718848951505478,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_momentum",
+        "importance": 0.02811507646247553,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "estrogen_imputed",
+        "importance": 0.02273027471047308,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_lag1",
+        "importance": 0.0218088780430643,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "estrogen_imputed_roll3",
+        "importance": 0.017888017276379935,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_consecutive_rise",
+        "importance": 0.017380942507634122,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_roll7",
+        "importance": 0.016172156177524398,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_roll3",
+        "importance": 0.012083956252131394,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "e2_pdg_ratio",
+        "importance": 0.010467153342513824,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_luteal",
+        "importance": 0.009583981571055626,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_roll7",
+        "importance": 0.007926670255064066,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_delta",
+        "importance": 0.007543126003421459,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "estrogen_imputed_roll7",
+        "importance": 0.005785324977746162,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_lag2",
+        "importance": 0.0049643520404253115,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "estrogen_imputed_delta",
+        "importance": 0.004890573923115506,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_follicular",
+        "importance": 0.004373794689676539,
+        "method": "SHAP (mean |value|)"
+      }
+    ],
+    "LightGBM": [
+      {
+        "feature": "lh_imputed",
+        "importance": 2.2593971902179906,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "estrogen_imputed_roll3",
+        "importance": 0.5266706241430783,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_delta",
+        "importance": 0.4955569037024377,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_roll3",
+        "importance": 0.49445853259460903,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed",
+        "importance": 0.44691129543738184,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "symptom_burden_roll3",
+        "importance": 0.3140178321475881,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_roll7",
+        "importance": 0.26838803064424877,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "estrogen_imputed",
+        "importance": 0.26340018370471086,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_momentum",
+        "importance": 0.24913982223246195,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "pdg_imputed_roll3",
+        "importance": 0.24824840735014608,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_lag2",
+        "importance": 0.22819188455376946,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_roll7",
+        "importance": 0.22757752812601884,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "lh_imputed_lag1",
+        "importance": 0.200347186654005,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "sleepissue_imputed",
+        "importance": 0.18602332914937164,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "e2_pdg_ratio",
+        "importance": 0.1681067914633998,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "stress_imputed",
+        "importance": 0.16546205684028603,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "estrogen_imputed_delta",
+        "importance": 0.1508685705589137,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "estrogen_imputed_roll7",
+        "importance": 0.1492620644849053,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_follicular",
+        "importance": 0.1344701160967516,
+        "method": "SHAP (mean |value|)"
+      },
+      {
+        "feature": "is_ovulatory",
+        "importance": 0.134137332865976,
+        "method": "SHAP (mean |value|)"
+      }
+    ]
+  }
+}
