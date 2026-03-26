@@ -1,9 +1,11 @@
 # ── ML ────────────────────────────────────────────────────────────────────────
 lightgbm
 scikit-learn
+imbalanced-learn
 pandas
 numpy
 shap
+joblib
 
 # ── RAG / Embeddings ──────────────────────────────────────────────────────────
 chromadb
