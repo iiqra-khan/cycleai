@@ -6,6 +6,7 @@ pandas
 numpy
 shap
 joblib
+matplotlib
 
 # ── RAG / Embeddings ──────────────────────────────────────────────────────────
 chromadb
