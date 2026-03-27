@@ -16,17 +16,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ── Copy source code ──────────────────────────────────────────────────────────
 COPY . .
 
-# ── Env vars ──────────────────────────────────────────────────────────────────
-# HF_TOKEN and OPENAI_API_KEY are set in Render dashboard.
-# Enable "Available in build" for HF_TOKEN so train_and_save.py can use it.
+# ── Runtime env (injected safely by Render at container start) ────────────────
 ENV PYTHONUNBUFFERED=1
-ENV HF_DATASET=iiqra/cycleai-data
-
-# ── Train models at build time ────────────────────────────────────────────────
-RUN python train_and_save.py
 
 # ── Expose port ───────────────────────────────────────────────────────────────
 EXPOSE 8000
 
-# ── Start FastAPI ─────────────────────────────────────────────────────────────
-CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# ── Start: train first, then serve ───────────────────────────────────────────
+# HF_TOKEN, HF_DATASET, OPENAI_API_KEY are available here from Render dashboard
+CMD ["sh", "-c", "python train_and_save.py && uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
