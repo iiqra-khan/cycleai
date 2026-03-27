@@ -12,8 +12,8 @@ __pycache__/
 *.pyo
 
 # Models (large files)
-*.pkl
-models/
+# *.pkl
+# models/
 
 # Data
 *.csv
