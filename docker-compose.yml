@@ -32,6 +32,7 @@ services:
 
   # ── Frontend (React + nginx) ────────────────────────────────────────────────
   frontend:
+    build:
       context: .
       dockerfile: frontend/Dockerfile
     container_name: cycleai-frontend

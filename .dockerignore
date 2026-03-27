@@ -44,3 +44,8 @@ menstrual_ai_agentic_rag/
 chroma_db/
 pipeline_outputs/
 models/
+
+# Keep runtime model artifacts in the image for backend inference
+!models/
+!models/*.pkl
+!models/*.json
