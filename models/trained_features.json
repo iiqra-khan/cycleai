@@ -30,15 +30,9 @@
   "lh_consecutive_rise",
   "symptom_burden",
   "symptom_burden_roll3",
-  "is_luteal",
-  "is_ovulatory",
-  "is_follicular",
-  "is_menstrual",
   "cramps_imputed_lag1",
   "cramps_imputed_lag2",
   "lh_imputed_lag1",
   "lh_imputed_lag2",
-  "is_bleeding_lag1",
-  "is_bleeding_lag2",
   "e2_pdg_ratio"
 ]

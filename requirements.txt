@@ -19,6 +19,7 @@ openai
 fastapi
 uvicorn[standard]
 python-multipart
+PyJWT
 
 # ── Data / HuggingFace ────────────────────────────────────────────────────────
 huggingface_hub

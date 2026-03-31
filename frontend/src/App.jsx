@@ -1,9 +1,13 @@
 // import './App.css'
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // const API_BASE = "http://127.0.0.1:8000";
 // To this — works both locally and in Docker
 const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
+const DAYS_STORAGE_KEY = "cycleai_days_v1";
+const AUTH_STORAGE_KEY = "cycleai_auth_v1";
 
 // ── Colour palette ────────────────────────────────────────────────────────────
 const COLORS = {
@@ -144,32 +148,386 @@ const DEFAULT_DAY = {
   day_in_study: 1,
 };
 
+const IMPORT_DAY_DEFAULTS = {
+  lh_imputed: 0,
+  estrogen_imputed: 0,
+  pdg_imputed: 0,
+  cramps_imputed: 0,
+  sorebreasts_imputed: 0,
+  bloating_imputed: 0,
+  moodswing_imputed: 0,
+  fatigue_imputed: 0,
+  headaches_imputed: 0,
+  foodcravings_imputed: 0,
+  indigestion_imputed: 0,
+  exerciselevel_imputed: 0,
+  stress_imputed: 0,
+  sleepissue_imputed: 0,
+  appetite_imputed: 0,
+  high_estrogen_flag: false,
+  estrogen_capped_flag: false,
+  is_weekend: false,
+  id: 1,
+  day_in_study: 1,
+};
+
+function normalizeStoredDays(rawDays) {
+  if (!Array.isArray(rawDays) || rawDays.length === 0) {
+    return [{ ...DEFAULT_DAY }];
+  }
+  return rawDays.map((d, idx) => ({
+    ...DEFAULT_DAY,
+    ...(d || {}),
+    day_in_study: Number.isFinite(Number(d?.day_in_study))
+      ? Number(d.day_in_study)
+      : idx + 1,
+  }));
+}
+
+function normalizeImportedDays(rawDays) {
+  if (!Array.isArray(rawDays) || rawDays.length === 0) {
+    return [{ ...DEFAULT_DAY }];
+  }
+  return rawDays.map((d, idx) => ({
+    ...IMPORT_DAY_DEFAULTS,
+    ...(d || {}),
+    id: Number.isFinite(Number(d?.id)) ? Number(d.id) : 1,
+    day_in_study: Number.isFinite(Number(d?.day_in_study)) ? Number(d.day_in_study) : idx + 1,
+  }));
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [formData, setFormData]     = useState({ ...DEFAULT_DAY });
+  const [days, setDays]             = useState(() => {
+    try {
+      const stored = localStorage.getItem(DAYS_STORAGE_KEY);
+      if (!stored) return [{ ...DEFAULT_DAY }];
+      return normalizeStoredDays(JSON.parse(stored));
+    } catch {
+      return [{ ...DEFAULT_DAY }];
+    }
+  });
+  const [activeDayIdx, setActiveDayIdx] = useState(0);
   const [result, setResult]         = useState(null);
+  const [ragTrace, setRagTrace]     = useState([]);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState(null);
   const [activeTab, setActiveTab]   = useState("input");
   const [includeRag, setIncludeRag] = useState(false);
+  const [jobId, setJobId]           = useState(null);
+  const [showImportBox, setShowImportBox] = useState(false);
+  const [importJsonText, setImportJsonText] = useState("");
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem(AUTH_STORAGE_KEY) || "");
+  const [authMode, setAuthMode] = useState("login");
+  const [authUsername, setAuthUsername] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [me, setMe] = useState(null);
+  const sseRef                      = useRef(null);
+  const currentDay                  = days[activeDayIdx] || days[0] || { ...DEFAULT_DAY };
 
-  const updateField = (field, val) =>
-    setFormData(prev => ({ ...prev, [field]: parseFloat(val) || 0 }));
+  useEffect(() => {
+    localStorage.setItem(DAYS_STORAGE_KEY, JSON.stringify(days));
+  }, [days]);
+
+  useEffect(() => {
+    if (authToken) {
+      localStorage.setItem(AUTH_STORAGE_KEY, authToken);
+    } else {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      setMe(null);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    if (!authToken) return;
+
+    const loadMe = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+
+        if (!res.ok) {
+          setAuthToken("");
+          return;
+        }
+
+        const data = await res.json();
+        setMe(data);
+      } catch {
+        setAuthToken("");
+      }
+    };
+
+    loadMe();
+  }, [authToken]);
+
+  const authFetch = async (url, options = {}) => {
+    const headers = {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${authToken}`,
+    };
+
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+      setAuthToken("");
+      throw new Error("Session expired. Please log in again.");
+    }
+    return response;
+  };
+
+  const handleAuthSubmit = async (evt) => {
+    evt.preventDefault();
+    setError(null);
+
+    const username = authUsername.trim().toLowerCase();
+    if (username.length < 3) {
+      setError("Username must be at least 3 characters.");
+      return;
+    }
+
+    if (authPassword.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setAuthLoading(true);
+
+    try {
+      const endpoint = authMode === "register" ? "/auth/register" : "/auth/login";
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password: authPassword }),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+      if (!res.ok) {
+        throw new Error(data?.detail || `Authentication failed (${res.status})`);
+      }
+
+      setAuthToken(data.access_token);
+      setAuthPassword("");
+      setError(null);
+    } catch (e) {
+      setError(e.message || "Authentication failed");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    if (sseRef.current) {
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+    setAuthToken("");
+    setResult(null);
+    setRagTrace([]);
+    setJobId(null);
+    setLoading(false);
+  };
+
+  const updateField = (field, val) => {
+    const parsed = parseFloat(val);
+    const numeric = Number.isNaN(parsed) ? 0 : parsed;
+
+    setDays(prev => prev.map((day, idx) => (
+      idx === activeDayIdx ? { ...day, [field]: numeric } : day
+    )));
+  };
+
+  const addDay = () => {
+    let newIndex = 0;
+    setDays(prev => {
+      const last = prev[prev.length - 1] || DEFAULT_DAY;
+      const next = [
+        ...prev,
+        {
+          ...last,
+          day_in_study: (Number(last.day_in_study) || prev.length) + 1,
+        },
+      ];
+      newIndex = next.length - 1;
+      return next;
+    });
+    setActiveDayIdx(newIndex);
+  };
+
+  const duplicateActiveDay = () => {
+    let newIndex = 0;
+    setDays(prev => {
+      const base = prev[activeDayIdx] || prev[prev.length - 1] || DEFAULT_DAY;
+      const next = [
+        ...prev,
+        {
+          ...base,
+          day_in_study: (Number(base.day_in_study) || prev.length) + 1,
+        },
+      ];
+      newIndex = next.length - 1;
+      return next;
+    });
+    setActiveDayIdx(newIndex);
+  };
+
+  const removeActiveDay = () => {
+    if (days.length <= 1) return;
+
+    let nextIndex = 0;
+    setDays(prev => {
+      const idx = Math.min(activeDayIdx, prev.length - 1);
+      const next = prev.filter((_, i) => i !== idx);
+      nextIndex = Math.max(0, idx - 1);
+      return next;
+    });
+    setActiveDayIdx(nextIndex);
+  };
+
+  const clearAllDays = () => {
+    setDays([{ ...DEFAULT_DAY }]);
+    setActiveDayIdx(0);
+  };
+
+  const applyIdToAllDays = () => {
+    const participantId = Number(currentDay.id) || 1;
+    setDays(prev => prev.map(day => ({ ...day, id: participantId })));
+  };
+
+  const importDaysFromJson = () => {
+    try {
+      const parsed = JSON.parse(importJsonText);
+      const candidate = Array.isArray(parsed) ? parsed : parsed?.days;
+      const normalized = normalizeImportedDays(candidate);
+
+      setDays(normalized);
+      setActiveDayIdx(0);
+      setShowImportBox(false);
+      setImportJsonText("");
+      setError(null);
+    } catch {
+      setError("Invalid JSON. Paste either an array of day objects or an object with a days array.");
+    }
+  };
 
   const handlePredict = async () => {
+    if (sseRef.current) {
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+
     setLoading(true);
     setError(null);
     setResult(null);
+    setRagTrace([]);
+    setJobId(null);
+
+    if (!authToken) {
+      setError("Please log in before running predictions.");
+      setLoading(false);
+      return;
+    }
 
     try {
-      const res = await fetch(`${API_BASE}/predict`, {
+      if (days.length < 7) {
+        throw new Error("Please provide at least 7 days to match draft5 temporal feature behavior.");
+      }
+
+      const participantIds = new Set(days.map(d => Math.round(Number(d.id) || 1)));
+      if (participantIds.size !== 1) {
+        throw new Error("All days must belong to the same participant id.");
+      }
+
+      const normalizedDays = days.map(day => ({
+        ...day,
+        id: Math.round(Number(day.id) || 1),
+        day_in_study: Math.round(Number(day.day_in_study) || 1),
+      }));
+
+      const hasMissingHormones = normalizedDays.some(day => (
+        !Number.isFinite(Number(day.lh_imputed))
+        || !Number.isFinite(Number(day.estrogen_imputed))
+        || !Number.isFinite(Number(day.pdg_imputed))
+      ));
+      if (hasMissingHormones) {
+        throw new Error("Each day must include numeric lh_imputed, estrogen_imputed, and pdg_imputed values.");
+      }
+
+      const sortedDays = [...normalizedDays].sort((a, b) => a.day_in_study - b.day_in_study);
+
+      const requestBody = {
+        days: sortedDays,
+        include_rag:  includeRag,
+        include_shap: true,
+      };
+
+      // Use SSE job flow when RAG is enabled to stream live trace events.
+      if (includeRag) {
+        const jobRes = await authFetch(`${API_BASE}/predict/jobs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!jobRes.ok) {
+          const err = await jobRes.json();
+          throw new Error(err.detail || "Failed to create prediction job");
+        }
+
+        const job = await jobRes.json();
+        setJobId(job.job_id);
+        setActiveTab("results");
+
+        const es = new EventSource(`${API_BASE}${job.stream_url}?token=${encodeURIComponent(authToken)}`);
+        sseRef.current = es;
+
+        es.onmessage = (evt) => {
+          try {
+            const eventObj = JSON.parse(evt.data);
+            setRagTrace(prev => [...prev, eventObj]);
+
+            if (eventObj.type === "final_result") {
+              setResult(eventObj.payload);
+            }
+
+            if (eventObj.type === "error") {
+              const msg = eventObj.payload?.error || eventObj.message || "Prediction job failed";
+              setError(msg);
+            }
+
+            if (eventObj.type === "completed" || eventObj.type === "error") {
+              setLoading(false);
+              es.close();
+              sseRef.current = null;
+            }
+          } catch (_e) {
+            setError("Failed to parse prediction stream event");
+            setLoading(false);
+            es.close();
+            sseRef.current = null;
+          }
+        };
+
+        es.onerror = () => {
+          setError("Prediction stream disconnected");
+          setLoading(false);
+          es.close();
+          sseRef.current = null;
+        };
+
+        return;
+      }
+
+      const res = await authFetch(`${API_BASE}/predict`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          days: [{ ...formData }],
-          include_rag:  includeRag,
-          include_shap: true,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -219,10 +577,96 @@ export default function App() {
               Menstrual Cycle Prediction · Explainable AI · Clinical DSS
             </div>
           </div>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            {authToken && me && (
+              <div style={{ fontSize: 12, color: COLORS.muted }}>
+                Logged in as <span style={{ color: COLORS.accent }}>{me.username}</span>
+              </div>
+            )}
+            {authToken && (
+              <button
+                onClick={handleLogout}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: `1px solid ${COLORS.border}`,
+                  background: COLORS.bg,
+                  color: COLORS.text,
+                  cursor: "pointer",
+                  fontSize: 12,
+                }}
+              >
+                Logout
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
+      {!authToken && (
+        <div style={{ maxWidth: 900, margin: "0 auto 24px" }}>
+          <Card style={{ borderColor: `${COLORS.accent}33` }}>
+            <SectionTitle accent={COLORS.accent}>{authMode === "register" ? "Create Account" : "Login Required"}</SectionTitle>
+            <form onSubmit={handleAuthSubmit} style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <Input label="Username" value={authUsername} onChange={setAuthUsername} type="text" step={undefined} min={undefined} />
+                <Input label="Password" value={authPassword} onChange={setAuthPassword} type="password" step={undefined} min={undefined} />
+              </div>
+              {error && (
+                <div style={{
+                  padding: 10,
+                  borderRadius: 10,
+                  background: `${COLORS.high}11`,
+                  border: `1px solid ${COLORS.high}33`,
+                  color: COLORS.high,
+                  fontSize: 13,
+                }}>
+                  {error}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  style={{
+                    padding: "10px 16px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accent2})`,
+                    color: "#fff",
+                    cursor: authLoading ? "not-allowed" : "pointer",
+                    fontWeight: 700,
+                    fontSize: 13,
+                  }}
+                >
+                  {authLoading ? "Please wait..." : authMode === "register" ? "Register" : "Login"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode(prev => (prev === "login" ? "register" : "login"));
+                    setError(null);
+                  }}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: `1px solid ${COLORS.border}`,
+                    background: COLORS.bg,
+                    color: COLORS.text,
+                    cursor: "pointer",
+                    fontSize: 13,
+                  }}
+                >
+                  Switch to {authMode === "login" ? "Register" : "Login"}
+                </button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
       {/* ── Tabs ───────────────────────────────────────────────────────────── */}
+      {authToken && (
       <div style={{ maxWidth: 900, margin: "0 auto 24px" }}>
         <div style={{
           display: "flex", gap: 4,
@@ -250,20 +694,122 @@ export default function App() {
           ))}
         </div>
       </div>
+      )}
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* ── INPUT TAB ──────────────────────────────────────────────────────── */}
-        {activeTab === "input" && (
+        {authToken && activeTab === "input" && (
           <div style={{ display: "grid", gap: 20 }}>
 
             {/* Hormones */}
             <Card>
+              <SectionTitle>Day History</SectionTitle>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                {days.map((day, idx) => (
+                  <button
+                    key={`day-btn-${idx}`}
+                    onClick={() => setActiveDayIdx(idx)}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 999,
+                      border: `1px solid ${idx === activeDayIdx ? COLORS.accent : COLORS.border}`,
+                      background: idx === activeDayIdx ? `${COLORS.accent}22` : COLORS.bg,
+                      color: idx === activeDayIdx ? COLORS.accent : COLORS.text,
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Day {idx + 1} • study {Math.round(Number(day.day_in_study) || idx + 1)}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+                <button onClick={addDay} style={{
+                  padding: "8px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`,
+                  background: COLORS.bg, color: COLORS.text, cursor: "pointer", fontSize: 12,
+                }}>
+                  + Add Day
+                </button>
+                <button onClick={duplicateActiveDay} style={{
+                  padding: "8px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`,
+                  background: COLORS.bg, color: COLORS.text, cursor: "pointer", fontSize: 12,
+                }}>
+                  Duplicate Active Day
+                </button>
+                <button onClick={removeActiveDay} style={{
+                  padding: "8px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`,
+                  background: COLORS.bg, color: COLORS.text, cursor: "pointer", fontSize: 12,
+                }}>
+                  Remove Active Day
+                </button>
+                <button onClick={clearAllDays} style={{
+                  padding: "8px 12px", borderRadius: 8, border: `1px solid ${COLORS.high}33`,
+                  background: `${COLORS.high}11`, color: COLORS.high, cursor: "pointer", fontSize: 12,
+                }}>
+                  Clear All
+                </button>
+                <button onClick={() => setShowImportBox(prev => !prev)} style={{
+                  padding: "8px 12px", borderRadius: 8, border: `1px solid ${COLORS.accent}55`,
+                  background: `${COLORS.accent}11`, color: COLORS.accent, cursor: "pointer", fontSize: 12,
+                }}>
+                  {showImportBox ? "Close JSON Import" : "Import JSON"}
+                </button>
+                <div style={{ marginLeft: "auto", fontSize: 12, color: COLORS.muted, alignSelf: "center" }}>
+                  Days in payload: {days.length}
+                </div>
+              </div>
+
+              {showImportBox && (
+                <div style={{
+                  border: `1px solid ${COLORS.border}`,
+                  background: COLORS.bg,
+                  borderRadius: 12,
+                  padding: 12,
+                  marginBottom: 18,
+                }}>
+                  <Label>Paste Days JSON</Label>
+                  <textarea
+                    value={importJsonText}
+                    onChange={(e) => setImportJsonText(e.target.value)}
+                    placeholder={'[{"id":1,"day_in_study":1,"lh_imputed":4.2,...},{"id":1,"day_in_study":2,...}]'}
+                    style={{
+                      width: "100%",
+                      minHeight: 120,
+                      background: COLORS.surface,
+                      color: COLORS.text,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 8,
+                      padding: 10,
+                      fontSize: 12,
+                      fontFamily: "monospace",
+                      resize: "vertical",
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button onClick={importDaysFromJson} style={{
+                      padding: "8px 12px", borderRadius: 8, border: "none",
+                      background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accent2})`,
+                      color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 700,
+                    }}>
+                      Load Days
+                    </button>
+                    <button onClick={() => setImportJsonText("")} style={{
+                      padding: "8px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`,
+                      background: COLORS.surface, color: COLORS.text, cursor: "pointer", fontSize: 12,
+                    }}>
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <SectionTitle accent={COLORS.accent3}>Hormonal Markers</SectionTitle>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                <Input label="LH (IU/L)"          value={formData.lh_imputed}       onChange={v => updateField("lh_imputed", v)} />
-                <Input label="Estrogen (pg/mL)"   value={formData.estrogen_imputed} onChange={v => updateField("estrogen_imputed", v)} />
-                <Input label="Progesterone (PDG)"  value={formData.pdg_imputed}      onChange={v => updateField("pdg_imputed", v)} />
+                <Input label="LH (IU/L)"          value={currentDay.lh_imputed}       onChange={v => updateField("lh_imputed", v)} />
+                <Input label="Estrogen (pg/mL)"   value={currentDay.estrogen_imputed} onChange={v => updateField("estrogen_imputed", v)} />
+                <Input label="Progesterone (PDG)"  value={currentDay.pdg_imputed}      onChange={v => updateField("pdg_imputed", v)} />
               </div>
             </Card>
 
@@ -286,7 +832,7 @@ export default function App() {
                   ["Appetite",     "appetite_imputed"],
                 ].map(([label, field]) => (
                   <Input key={field} label={label}
-                    value={formData[field]}
+                    value={currentDay[field]}
                     onChange={v => updateField(field, v)}
                     step="1" min="0"
                   />
@@ -298,8 +844,8 @@ export default function App() {
             <Card>
               <SectionTitle>Cycle Info</SectionTitle>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                <Input label="Participant ID"  value={formData.id}           onChange={v => updateField("id", v)} step="1" />
-                <Input label="Day in Study"    value={formData.day_in_study} onChange={v => updateField("day_in_study", v)} step="1" />
+                <Input label="Participant ID"  value={currentDay.id}           onChange={v => updateField("id", v)} step="1" />
+                <Input label="Day in Study"    value={currentDay.day_in_study} onChange={v => updateField("day_in_study", v)} step="1" />
                 <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                   <Label>Options</Label>
                   <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
@@ -309,6 +855,19 @@ export default function App() {
                     />
                     Include RAG explanation (slower)
                   </label>
+                  <button onClick={applyIdToAllDays} style={{
+                    marginTop: 10,
+                    padding: "7px 10px",
+                    borderRadius: 8,
+                    border: `1px solid ${COLORS.border}`,
+                    background: COLORS.bg,
+                    color: COLORS.text,
+                    cursor: "pointer",
+                    fontSize: 12,
+                    width: "fit-content",
+                  }}>
+                    Apply ID to all days
+                  </button>
                 </div>
               </div>
             </Card>
@@ -342,14 +901,71 @@ export default function App() {
             >
               {loading ? "⏳ Predicting..." : "🔮 Run Prediction"}
             </button>
+
+            {loading && includeRag && (
+              <div style={{ fontSize: 12, color: COLORS.muted }}>
+                Streaming live RAG trace events...
+              </div>
+            )}
           </div>
         )}
 
         {/* ── RESULTS TAB ────────────────────────────────────────────────────── */}
-        {activeTab === "results" && (
+        {authToken && activeTab === "results" && (
           <div style={{ display: "grid", gap: 20 }}>
 
-            {!result && (
+            {/* Live trace */}
+            {(ragTrace.length > 0 || loading) && (
+              <Card style={{ borderColor: `${COLORS.accent}33` }}>
+                <SectionTitle accent={COLORS.accent}>Live RAG Trace</SectionTitle>
+                {jobId && (
+                  <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 10 }}>
+                    Job ID: <span style={{ color: COLORS.accent, fontFamily: "monospace" }}>{jobId}</span>
+                  </div>
+                )}
+                <div style={{
+                  maxHeight: 240,
+                  overflowY: "auto",
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 10,
+                  padding: 10,
+                  background: COLORS.bg,
+                  display: "grid",
+                  gap: 8,
+                }}>
+                  {ragTrace.length === 0 && (
+                    <div style={{ fontSize: 12, color: COLORS.muted }}>
+                      Waiting for events...
+                    </div>
+                  )}
+                  {ragTrace.map((evt, idx) => (
+                    <div key={`${evt.event_id || idx}-${evt.type || "event"}`} style={{
+                      fontSize: 12,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 8,
+                      padding: "8px 10px",
+                      background: COLORS.surface,
+                    }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                        <span style={{
+                          color: COLORS.accent,
+                          fontFamily: "monospace",
+                          fontSize: 11,
+                        }}>
+                          {evt.type || "event"}
+                        </span>
+                        <span style={{ color: COLORS.muted, fontSize: 11, fontFamily: "monospace" }}>
+                          {evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : ""}
+                        </span>
+                      </div>
+                      <div style={{ color: COLORS.text }}>{evt.message}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {!result && ragTrace.length === 0 && !loading && (
               <Card>
                 <div style={{ textAlign: "center", padding: 40, color: COLORS.muted }}>
                   No results yet. Go to Input Data and run a prediction.
@@ -461,11 +1077,33 @@ export default function App() {
                     <SectionTitle accent={COLORS.accent}>
                       Agentic RAG — Clinical Evidence
                     </SectionTitle>
-                    <div style={{
-                      fontSize: 13, color: COLORS.text,
-                      lineHeight: 1.8, whiteSpace: "pre-wrap",
-                    }}>
-                      {result.rag_explanation}
+                    <div style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.8 }}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ children }) => <p style={{ margin: "0 0 10px", color: COLORS.text }}>{children}</p>,
+                          h1: ({ children }) => <h3 style={{ margin: "0 0 10px", color: COLORS.accent }}>{children}</h3>,
+                          h2: ({ children }) => <h4 style={{ margin: "12px 0 8px", color: COLORS.accent }}>{children}</h4>,
+                          h3: ({ children }) => <h5 style={{ margin: "10px 0 6px", color: COLORS.accent2 }}>{children}</h5>,
+                          ul: ({ children }) => <ul style={{ margin: "0 0 10px 18px" }}>{children}</ul>,
+                          ol: ({ children }) => <ol style={{ margin: "0 0 10px 18px" }}>{children}</ol>,
+                          li: ({ children }) => <li style={{ marginBottom: 4 }}>{children}</li>,
+                          strong: ({ children }) => <strong style={{ color: "#ffffff" }}>{children}</strong>,
+                          code: ({ children }) => (
+                            <code style={{
+                              background: COLORS.bg,
+                              border: `1px solid ${COLORS.border}`,
+                              borderRadius: 6,
+                              padding: "2px 6px",
+                              fontFamily: "monospace",
+                            }}>
+                              {children}
+                            </code>
+                          ),
+                        }}
+                      >
+                        {result.rag_explanation}
+                      </ReactMarkdown>
                     </div>
                   </Card>
                 )}

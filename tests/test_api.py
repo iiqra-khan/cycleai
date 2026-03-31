@@ -10,6 +10,9 @@ import time
 import sys
 
 BASE_URL = "http://127.0.0.1:8000"
+TEST_USER = "testuser"
+TEST_PASSWORD = "testpass123"
+AUTH_HEADERS = {}
 
 # ── Color codes for terminal output ──────────────────────────────────────────
 GREEN  = "\033[92m"
@@ -91,6 +94,34 @@ PAYLOAD_INVALID = {
 
 results = {"passed": 0, "failed": 0, "warnings": 0}
 
+
+def ensure_auth_token():
+    global AUTH_HEADERS
+
+    register_res = requests.post(
+        f"{BASE_URL}/auth/register",
+        json={"username": TEST_USER, "password": TEST_PASSWORD},
+        timeout=5,
+    )
+
+    if register_res.status_code not in [200, 409]:
+        raise RuntimeError(f"Auth register failed: {register_res.status_code} {register_res.text}")
+
+    login_res = requests.post(
+        f"{BASE_URL}/auth/login",
+        json={"username": TEST_USER, "password": TEST_PASSWORD},
+        timeout=5,
+    )
+
+    if login_res.status_code != 200:
+        raise RuntimeError(f"Auth login failed: {login_res.status_code} {login_res.text}")
+
+    token = login_res.json().get("access_token")
+    if not token:
+        raise RuntimeError("Auth login succeeded but no token returned")
+
+    AUTH_HEADERS = {"Authorization": f"Bearer {token}"}
+
 def run_test(name, fn):
     print(f"\n{BOLD}{CYAN}── {name}{RESET}")
     try:
@@ -120,7 +151,7 @@ def test_health():
 
 
 def test_features():
-    r = requests.get(f"{BASE_URL}/features", timeout=5)
+    r = requests.get(f"{BASE_URL}/features", headers=AUTH_HEADERS, timeout=5)
     assert r.status_code == 200
     data = r.json()
     assert data["count"] > 0, "No features returned"
@@ -130,7 +161,7 @@ def test_features():
 
 def test_period_prediction():
     start = time.time()
-    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_PERIOD, timeout=30)
+    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_PERIOD, headers=AUTH_HEADERS, timeout=30)
     elapsed = time.time() - start
 
     assert r.status_code == 200, f"Expected 200, got {r.status_code} — {r.text}"
@@ -147,7 +178,7 @@ def test_period_prediction():
 
 def test_ovulation_prediction():
     start = time.time()
-    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_OVULATION, timeout=30)
+    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_OVULATION, headers=AUTH_HEADERS, timeout=30)
     elapsed = time.time() - start
 
     assert r.status_code == 200, f"Expected 200, got {r.status_code}"
@@ -165,7 +196,7 @@ def test_ovulation_prediction():
 
 
 def test_low_risk():
-    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_LOW_RISK, timeout=30)
+    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_LOW_RISK, headers=AUTH_HEADERS, timeout=30)
     assert r.status_code == 200
     data = r.json()
 
@@ -178,7 +209,7 @@ def test_low_risk():
 
 
 def test_single_day():
-    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_SINGLE_DAY, timeout=30)
+    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_SINGLE_DAY, headers=AUTH_HEADERS, timeout=30)
     assert r.status_code == 200
     data = r.json()
     prob = data["period_probability"]
@@ -187,7 +218,7 @@ def test_single_day():
 
 
 def test_response_structure():
-    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_PERIOD, timeout=30)
+    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_PERIOD, headers=AUTH_HEADERS, timeout=30)
     assert r.status_code == 200
     data = r.json()
 
@@ -210,7 +241,7 @@ def test_response_structure():
 
 
 def test_invalid_payload():
-    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_INVALID, timeout=30)
+    r = requests.post(f"{BASE_URL}/predict", json=PAYLOAD_INVALID, headers=AUTH_HEADERS, timeout=30)
     # Should either handle gracefully (200 with defaults) or return 4xx
     if r.status_code == 200:
         ok("Invalid payload handled gracefully (filled missing fields with defaults)")
@@ -225,7 +256,7 @@ def test_response_time():
     times = []
     for _ in range(3):
         start = time.time()
-        requests.post(f"{BASE_URL}/predict", json=PAYLOAD_LOW_RISK, timeout=30)
+        requests.post(f"{BASE_URL}/predict", json=PAYLOAD_LOW_RISK, headers=AUTH_HEADERS, timeout=30)
         times.append(time.time() - start)
 
     avg = sum(times) / len(times)
@@ -254,6 +285,13 @@ if __name__ == "__main__":
         print(f"\n{RED}❌ Cannot connect to {BASE_URL}")
         print(f"   Make sure the backend is running:")
         print(f"   python -m uvicorn backend.main:app --reload{RESET}\n")
+        sys.exit(1)
+
+    try:
+        ensure_auth_token()
+        print(f"{CYAN}ℹ  Auth token acquired for protected endpoints{RESET}")
+    except Exception as e:
+        print(f"\n{RED}❌ Authentication setup failed: {e}{RESET}\n")
         sys.exit(1)
 
     run_test("1. Health Check",         test_health)

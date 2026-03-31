@@ -7,6 +7,8 @@ import json
 import time
 import numpy as np
 import pandas as pd
+from datetime import datetime, timezone
+from typing import Any, Callable
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -80,14 +82,29 @@ class AgenticRAG:
         }
     ]
 
-    def __init__(self):
+    def __init__(self, trace_callback: Callable[[dict], None] | None = None):
         self.api_key  = os.environ.get("OPENAI_API_KEY")
         self.base_url = os.environ.get("OPENAI_BASE_URL",
                                         "https://openrouter.ai/api/v1")
+        self.trace_callback = trace_callback
+
+        self._trace("rag_init", "Initialising ChromaDB + sentence-transformers.")
 
         print("\n[RAG] Initialising ChromaDB + sentence-transformers...")
         self._collection, self._chroma = build_vector_store()
         print(f"  [RAG] Vector store ready.")
+        self._trace("rag_ready", "Vector store ready.")
+
+    def _trace(self, event_type: str, message: str, payload: dict | None = None):
+        if not self.trace_callback:
+            return
+
+        self.trace_callback({
+            "type": event_type,
+            "message": message,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "payload": payload or {},
+        })
 
     # ── Tool execution ────────────────────────────────────────────────────────
     def _execute_tool(self, tool_name: str, tool_args: dict) -> str:
@@ -95,23 +112,42 @@ class AgenticRAG:
             query  = tool_args.get("query", "")
             top_k  = tool_args.get("top_k", 3)
             print(f"  [Tool] retrieve_evidence | query='{query}' | top_k={top_k}")
+            self._trace(
+                "tool_call",
+                "LLM called retrieve_evidence.",
+                {"tool": "retrieve_evidence", "query": query, "top_k": top_k}
+            )
 
             results  = self._collection.query(
                 query_texts=[query],
                 n_results=min(top_k, 7)
             )
+            documents = (results.get("documents") or [[]])[0]
+            metadatas = (results.get("metadatas") or [[]])[0]
             passages = []
+            retrieved = []
             for i, (doc, meta) in enumerate(
-                zip(results["documents"][0], results["metadatas"][0])
+                zip(documents, metadatas)
             ):
                 passages.append(
                     f"[Evidence {i+1} — {meta.get('source','?')}]\n{doc}"
                 )
                 print(f"  [Tool] Retrieved: "
                       f"{meta.get('source')} — {meta.get('topic')}")
+                retrieved.append({
+                    "source": meta.get("source", "?"),
+                    "topic": meta.get("topic", "?"),
+                })
+
+            self._trace(
+                "tool_result",
+                "Retrieved evidence passages.",
+                {"count": len(retrieved), "items": retrieved}
+            )
             return "\n\n".join(passages)
 
         elif tool_name == "finalize_explanation":
+            self._trace("tool_call", "LLM called finalize_explanation.")
             return tool_args.get("explanation", "")
 
         return f"Unknown tool: {tool_name}"
@@ -129,31 +165,57 @@ class AgenticRAG:
 
         for attempt in range(3):
             try:
+                self._trace(
+                    "llm_call",
+                    "Calling LLM.",
+                    {"attempt": attempt + 1, "use_tools": use_tools}
+                )
                 return client.chat.completions.create(**kwargs)
             except Exception as e:
                 if "429" in str(e) or "rate" in str(e).lower():
                     print(f"  [LLM] Rate limited "
                           f"(attempt {attempt+1}/3) — waiting 15s...")
+                    self._trace(
+                        "llm_rate_limited",
+                        "LLM rate-limited; retrying.",
+                        {"attempt": attempt + 1}
+                    )
                     time.sleep(15)
                 else:
+                    self._trace(
+                        "llm_error",
+                        "LLM call failed.",
+                        {"error": str(e)}
+                    )
                     raise e
         return None
 
     # ── Agentic tool loop ─────────────────────────────────────────────────────
     def _agentic_tool_loop(self, system: str, user: str,
                             max_iterations: int = 5) -> str:
-        messages = [
+        messages: list[dict[str, Any]] = [
             {"role": "system", "content": system},
             {"role": "user",   "content": user}
         ]
         print(f"\n  [Agent] Starting agentic tool loop "
               f"(max {max_iterations} steps)...")
+        self._trace(
+            "agent_start",
+            "Starting agentic tool loop.",
+            {"max_iterations": max_iterations}
+        )
 
         for iteration in range(max_iterations):
             print(f"  [Agent] Step {iteration + 1}...")
+            self._trace(
+                "agent_step",
+                f"Agent step {iteration + 1}.",
+                {"step": iteration + 1}
+            )
             response = self._call_llm(messages, use_tools=True)
 
             if response is None:
+                self._trace("agent_warning", "LLM unavailable after retries.")
                 return (
                     "[RAG] LLM unavailable — all models rate limited.\n"
                     f"User query:\n{user}"
@@ -183,10 +245,20 @@ class AgenticRAG:
                     tool_args = json.loads(tool_call.function.arguments)
 
                     print(f"  [Agent] LLM called tool: '{tool_name}'")
+                    self._trace(
+                        "agent_tool_call",
+                        "LLM requested tool call.",
+                        {"tool": tool_name}
+                    )
 
                     if tool_name == "finalize_explanation":
                         explanation = tool_args.get("explanation", "")
                         print(f"  [Agent] LLM finalized at step {iteration+1}")
+                        self._trace(
+                            "agent_finalized",
+                            "LLM finalized explanation.",
+                            {"step": iteration + 1}
+                        )
                         return explanation
 
                     tool_result = self._execute_tool(tool_name, tool_args)
@@ -197,13 +269,19 @@ class AgenticRAG:
                     })
             else:
                 print(f"  [Agent] LLM responded directly at step {iteration+1}")
+                self._trace(
+                    "agent_direct_response",
+                    "LLM responded directly without tool call.",
+                    {"step": iteration + 1}
+                )
                 return msg.content or "[No explanation generated]"
 
+        self._trace("agent_max_iterations", "Reached max agent iterations.")
         return "[Agent] Max iterations reached without finalization."
 
     # ── Public API ────────────────────────────────────────────────────────────
     def retrieve_and_explain(self, prediction_context: dict,
-                              X_test: pd.DataFrame = None) -> str:
+                              X_test: pd.DataFrame | None = None) -> str:
         """
         Main entry point. Drop-in replacement for AgenticRAGStub.
 
@@ -224,6 +302,11 @@ class AgenticRAG:
         print(f"\n{'='*60}")
         print(f"  AGENTIC RAG (Tool Calling) — Target: {target.upper()}")
         print(f"{'='*60}")
+        self._trace(
+            "rag_context",
+            "Prepared RAG context for explanation.",
+            {"target": target, "probability": proba, "risk": risk}
+        )
 
         model         = prediction_context.get("model")
         feature_names = prediction_context.get("feature_names", [])
@@ -284,12 +367,15 @@ SHAP — Features driving prediction DOWN:
 
 Use your tools to retrieve relevant clinical evidence, then finalize."""
 
-        return self._agentic_tool_loop(system, user, max_iterations=5)
+        explanation = self._agentic_tool_loop(system, user, max_iterations=5)
+        self._trace("rag_explanation_done", "RAG explanation generated.")
+        return explanation
 
 
 def generate_clinical_explanation(prediction_proba: float,
-                                   top_features: pd.DataFrame,
-                                   target: str = "period_start") -> str:
+                                   top_features: pd.DataFrame | None,
+                                   target: str = "period_start",
+                                   negative_features: pd.DataFrame | None = None) -> str:
     """
     Plain-language clinical explanation (fast, no LLM).
     Used as a quick summary before AgenticRAG runs.
@@ -298,7 +384,9 @@ def generate_clinical_explanation(prediction_proba: float,
                   else "Moderate" if prediction_proba > 0.4
                   else "Low")
     top_3 = (top_features.head(3)["feature"].tolist()
-             if top_features is not None else [])
+             if top_features is not None and not top_features.empty else [])
+    neg_3 = (negative_features.head(3)["feature"].tolist()
+             if negative_features is not None and not negative_features.empty else [])
 
     explanation = (
         f"PREDICTION SUMMARY\n"
@@ -310,8 +398,14 @@ def generate_clinical_explanation(prediction_proba: float,
         f"\nKEY CONTRIBUTING FACTORS\n"
         f"{'-'*40}\n"
     )
-    for i, feat in enumerate(top_3, 1):
-        explanation += f"  {i}. {feat.replace('_', ' ').title()}\n"
+    if top_3:
+        for i, feat in enumerate(top_3, 1):
+            explanation += f"  {i}. {feat.replace('_', ' ').title()} (upward driver)\n"
+    elif neg_3:
+        for i, feat in enumerate(neg_3, 1):
+            explanation += f"  {i}. {feat.replace('_', ' ').title()} (downward/protective driver)\n"
+    else:
+        explanation += "  No dominant SHAP drivers were detected for this sample.\n"
 
     explanation += (
         f"\nINTERPRETATION\n"
